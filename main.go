@@ -35,7 +35,9 @@ import (
 	_ "k8s.io/component-base/metrics/prometheus/clientgo"
 	_ "k8s.io/component-base/metrics/prometheus/version"
 	"k8s.io/klog/v2"
+	kcmnames "k8s.io/kubernetes/cmd/kube-controller-manager/names"
 
+	"github.com/hetznercloud/hcloud-cloud-controller-manager/hcloud"
 	_ "github.com/hetznercloud/hcloud-cloud-controller-manager/hcloud"
 )
 
@@ -46,7 +48,12 @@ func main() {
 	}
 
 	fss := cliflag.NamedFlagSets{}
-	command := app.NewCloudControllerManagerCommand(ccmOptions, cloudInitializer, app.DefaultInitFuncConstructors, names.CCMControllerAliases(), fss, wait.NeverStop)
+	controllerInitializers := app.DefaultInitFuncConstructors
+	controllerInitializers[kcmnames.NodeIpamController] = app.ControllerInitFuncConstructor{
+		Constructor: hcloud.NodeIpamControllerConstructor,
+	}
+	app.ControllersDisabledByDefault.Insert(kcmnames.NodeIpamController)
+	command := app.NewCloudControllerManagerCommand(ccmOptions, cloudInitializer, controllerInitializers, names.CCMControllerAliases(), fss, wait.NeverStop)
 
 	pflag.CommandLine.SetNormalizeFunc(cliflag.WordSepNormalizeFunc)
 	logs.InitLogs()
